@@ -4,7 +4,7 @@ data class User(
     val id: Int? = null,
     val username: String,
     val email: String,
-    val hashed_password: String? = null,
+    val password: String? = null,
     val full_name: String? = null,
     val bio: String? = null,
     val phone_number: String? = null,
@@ -34,6 +34,6 @@ data class LoginResponse(
 )
 
 data class Credentials(
-    val username: String,
+    val email: String,
     val password: String
 )

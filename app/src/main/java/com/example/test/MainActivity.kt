@@ -104,7 +104,10 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             )
         }
         composable("ThirdScreen") {
-            ThirdScreen(onBack = { navController.popBackStack() })
+            ThirdScreen(
+                onBack = { navController.popBackStack() },
+                onEnterScreen = { navController.navigate("EnterScreen") }
+            )
         }
         composable("ChatScreen") {
             ChatScreen(
@@ -306,12 +309,12 @@ fun EnterScreen(onBack: () -> Unit, onNavigateToThirdScreen: () -> Unit, onNavig
 
             Button(
                 onClick = { 
-//                    Login(
-//                        username = email.value,
-//                        password = password.value,
-//                        onSuccess = onNavigateToChatScreen
-//                    )
-                    onNavigateToChatScreen()
+                    Login(
+                        email = email.value,
+                        password = password.value,
+                        onSuccess = onNavigateToChatScreen
+                    )
+//                    onNavigateToChatScreen()
                  },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -344,8 +347,8 @@ fun EnterScreen(onBack: () -> Unit, onNavigateToThirdScreen: () -> Unit, onNavig
     }
 }
 
-fun Login(username: String, password: String, onSuccess: () -> Unit) {
-    val credentials = Credentials(username, password)
+fun Login(email: String, password: String, onSuccess: () -> Unit) {
+    val credentials = Credentials(email, password)
     RetrofitInstance.api.login(credentials).enqueue(object : Callback<LoginResponse> {
         override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
             if (response.isSuccessful) {
@@ -405,7 +408,7 @@ fun ChatScreenPreview() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ThirdScreen(onBack: () -> Unit) {
+fun ThirdScreen(onBack: () -> Unit, onEnterScreen: () -> Unit) {
     val name = remember { mutableStateOf("") }
     val email = remember { mutableStateOf("") }
     val password = remember { mutableStateOf("") }
@@ -539,6 +542,7 @@ fun ThirdScreen(onBack: () -> Unit) {
                             email = email.value,
                             password = password.value
                         )
+                        onEnterScreen()
                     } else {
                         // Handle password mismatch
                     }
@@ -557,7 +561,7 @@ fun ThirdScreen(onBack: () -> Unit) {
 }
 
 fun RegisterUser(username: String, email: String, password: String) {
-    val user = User(username=username, email=email, hashed_password=password)
+    val user = User(username=username, email=email, password=password)
     RetrofitInstance.api.register(user).enqueue(object : Callback<ApiResponse> {
         override fun onResponse(call: Call<ApiResponse>, response: Response<ApiResponse>) {
             if (response.isSuccessful) {
