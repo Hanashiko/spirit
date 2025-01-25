@@ -1,0 +1,9 @@
+Flask 
+SQLAlchemy 
+Flask-Migrate 
+Flask-Bcrypt 
+pycryptodome
+pymysql
+Flask-SQLAlchemy
+python-dotenv
+cryptography
