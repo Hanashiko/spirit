@@ -515,7 +515,7 @@ fun ChatScreenPreview() {
             onNavigateToCallScreen = {},
             onNavigateToProfileScreen = {},
             onNavigateToSettingsScreen = {},
-//            onNavigateToSendMessageScreen = {}
+//            onNavigateToSendMessageScreen = {},
             onNavigateToSecondScreen={},
             onNavigateToChatDetail={}
         )
@@ -767,7 +767,7 @@ fun ChatScreen(
     onNavigateToCallScreen: () -> Unit, 
     onNavigateToProfileScreen:() -> Unit, 
     onNavigateToSettingsScreen:() -> Unit,
-//    onNavigateToSendMessageScreen: () -> Unit
+//    onNavigateToSendMessageScreen: () -> Unit,
     onNavigateToSecondScreen: () -> Unit,
     onNavigateToChatDetail: (ChatMessage) -> Unit
 ) {
@@ -989,6 +989,37 @@ fun ChatScreen(
 //                }
 //            }
 
+
+
+//            Box(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .clickable { onNavigateToSendMessageScreen() }
+//                    .padding(8.dp),
+//                contentAlignment = Alignment.CenterStart // Додано contentAlignment, якщо потрібно
+//            ) {
+//                Row(
+//                    verticalAlignment = Alignment.CenterVertically // Для вирівнювання по вертикалі
+//                ) {
+//                    Icon(
+//                        painter = painterResource(id = R.drawable.send),
+//                        contentDescription = "Send Message Icon",
+//                        modifier = Modifier
+//                            .size(40.dp)
+//                            .padding(end = 8.dp)
+//                    )
+//                    Column {
+//                        Text(
+//                            text = "Надіслати повідомлення",
+//                            style = TextStyle(color = Color.Black, fontSize = 16.sp)
+//                        )
+//                        Text(
+//                            text = "Швидко створіть нове повідомлення",
+//                            style = TextStyle(color = Color.Gray, fontSize = 12.sp)
+//                        )
+//                    }
+//                }
+//            }
 
 
 
