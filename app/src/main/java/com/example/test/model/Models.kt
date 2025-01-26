@@ -64,3 +64,10 @@ data class UserChat(
     val username: String,
     val avatarImage: String?
 )
+data class ChatMessage(
+    val senderName: String,
+    val message: String,
+    val avatarRes: String,
+    val time: String,
+    val senderPublicKey: String
+)
