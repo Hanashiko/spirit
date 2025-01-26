@@ -1,5 +1,6 @@
 package com.example.test
 import android.os.Bundle
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -41,6 +42,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.test.ui.theme.TestTheme
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.material3.Text as Text1
@@ -54,10 +56,15 @@ import com.example.test.model.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+//import org.bouncycastle.jce.provider.BouncyCastleProvider
+//import java.security.Security
+import java.security.PrivateKey
+import java.util.Base64
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+//        Security.addProvider(BouncyCastleProvider())
         enableEdgeToEdge()
         setContent {
             TestTheme {
@@ -100,7 +107,8 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
                 },
                 onNavigateToChatScreen = {
                     navController.navigate("ChatScreen")
-                }
+                },
+                context = LocalContext.current
             )
         }
         composable("ThirdScreen") {
@@ -222,9 +230,16 @@ fun MainScreen(onNavigateToSecondScreen: () -> Unit, modifier: Modifier = Modifi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EnterScreen(onBack: () -> Unit, onNavigateToThirdScreen: () -> Unit, onNavigateToChatScreen: ()-> Unit) {
+fun EnterScreen(
+    onBack: () -> Unit,
+    onNavigateToThirdScreen: () -> Unit,
+    onNavigateToChatScreen: (Int) -> Unit,
+    context: Context
+) {
     val email = remember { mutableStateOf("") }
     val password = remember { mutableStateOf("") }
+    val context = LocalContext.current
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -252,7 +267,7 @@ fun EnterScreen(onBack: () -> Unit, onNavigateToThirdScreen: () -> Unit, onNavig
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            Text1(
+            Text(
                 text = "Вхід",
                 style = TextStyle(
                     color = Color.Black,
@@ -262,7 +277,7 @@ fun EnterScreen(onBack: () -> Unit, onNavigateToThirdScreen: () -> Unit, onNavig
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text1(
+            Text(
                 text = "Будь ласка, увійдіть у свій акаунт, \nаби продовжити",
                 style = TextStyle(
                     color = Color.Gray,
@@ -275,7 +290,7 @@ fun EnterScreen(onBack: () -> Unit, onNavigateToThirdScreen: () -> Unit, onNavig
             TextField(
                 value = email.value,
                 onValueChange = { email.value = it },
-                label = { Text1("Ваш email") },
+                label = { Text("Ваш email") },
                 modifier = Modifier
                     .fillMaxWidth(),
                 textStyle = TextStyle(color = Color.Black),
@@ -287,13 +302,12 @@ fun EnterScreen(onBack: () -> Unit, onNavigateToThirdScreen: () -> Unit, onNavig
                 )
             )
 
-
             Spacer(modifier = Modifier.height(16.dp))
 
             TextField(
                 value = password.value,
-                onValueChange = {  password.value = it },
-                label = { Text1("Ваш пароль") },
+                onValueChange = { password.value = it },
+                label = { Text("Ваш пароль") },
                 modifier = Modifier
                     .fillMaxWidth(),
                 textStyle = TextStyle(color = Color.Black),
@@ -308,21 +322,21 @@ fun EnterScreen(onBack: () -> Unit, onNavigateToThirdScreen: () -> Unit, onNavig
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { 
+                onClick = {
                     Login(
+                        context = context,
                         email = email.value,
                         password = password.value,
-                        onSuccess = onNavigateToChatScreen
+                        onSuccess = onNavigateToChatScreen // Pass the function with the Int parameter
                     )
-//                    onNavigateToChatScreen()
-                 },
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.run { buttonColors(containerColor = Color(0xFFFFCB45)) }
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFCB45))
             ) {
-                Text1(text = "Вхід", fontSize = 16.sp, color = Color.White)
+                Text(text = "Вхід", fontSize = 16.sp, color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -340,28 +354,68 @@ fun EnterScreen(onBack: () -> Unit, onNavigateToThirdScreen: () -> Unit, onNavig
                 onClick = { offset ->
                     onNavigateToThirdScreen()
                 },
-                modifier = Modifier.fillMaxWidth() .padding(start = 68.dp)
+                modifier = Modifier.fillMaxWidth().padding(start = 68.dp)
             )
-
         }
     }
 }
 
-fun Login(email: String, password: String, onSuccess: () -> Unit) {
+fun Login(context: Context, email: String, password: String, onSuccess: (Int) -> Unit) {
     val credentials = Credentials(email, password)
     RetrofitInstance.api.login(credentials).enqueue(object : Callback<LoginResponse> {
         override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
             if (response.isSuccessful) {
-                // Handle successful response
                 val loginResponse = response.body()
-                // Show success message
-                onSuccess()
+                if (loginResponse != null && loginResponse.success) {
+                    // Генерація пари ключів ECDH
+                    val keyPair = CryptoUtils.generateECKeyPair()
+                    val privateKey = keyPair.private
+                    val publicKey = keyPair.public
+                    val serializedPublicKey = CryptoUtils.serializePublicKey(publicKey)
+
+                    // Зберігайте приватний ключ локально (в SharedPreferences або іншому сховищі)
+                    savePrivateKeyLocally(context, privateKey)
+
+                    // Відправте публічний ключ на сервер
+                    updatePublicKeyOnServer(loginResponse.userId, serializedPublicKey) {
+                        // Виклик функції onSuccess з ID користувача
+                        onSuccess(loginResponse.userId)
+                    }
+                } else {
+                    // Обробка помилкового відгуку
+                }
             } else {
-                // Handle error response
+                // Обробка помилкового відгуку
             }
         }
 
         override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+            // Обробка невдалої спроби
+        }
+    })
+}
+
+fun savePrivateKeyLocally(context: Context, privateKey: PrivateKey) {
+    val sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+    val editor = sharedPreferences.edit()
+    val privateKeyString = Base64.getEncoder().encodeToString(privateKey.encoded)
+    editor.putString("privateKey", privateKeyString)
+    editor.apply()
+}
+
+fun updatePublicKeyOnServer(userId: Int, publicKey: String, onSuccess: () -> Unit) {
+    val publicKeyMap = mapOf("public_key" to publicKey)
+    RetrofitInstance.api.updatePublicKey(userId, publicKeyMap).enqueue(object : Callback<ApiResponse> {
+        override fun onResponse(call: Call<ApiResponse>, response: Response<ApiResponse>) {
+            if (response.isSuccessful) {
+                // Successfully updated public key
+                onSuccess()
+            } else {
+                // Handle unsuccessful response
+            }
+        }
+
+        override fun onFailure(call: Call<ApiResponse>, t: Throwable) {
             // Handle failure
         }
     })
@@ -379,11 +433,12 @@ fun MainScreenPreview() {
 @Composable
 fun SecondScreenPreview() {
     TestTheme {
+        val context = LocalContext.current
         EnterScreen(
             onBack = {},
             onNavigateToThirdScreen = {},
             onNavigateToChatScreen = {},
-
+            context = context
         )
     }
 }
