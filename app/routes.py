@@ -271,7 +271,8 @@ def update_public_key():
 
     return jsonify({'success': True, 'message': 'Public key updated successfully'}), 200
 
-@app.route('/user_chats/<int:user_id>', methods=['GET'])
+
+@bp.route('/user_chats/<int:user_id>', methods=['GET'])
 def get_user_chats(user_id):
     chat_user_ids = db.session.query(Message.sender_id).filter(Message.recipient_id == user_id).union(
         db.session.query(Message.recipient_id).filter(Message.sender_id == user_id)
@@ -281,9 +282,22 @@ def get_user_chats(user_id):
 
     users = User.query.filter(User.id.in_(chat_user_ids)).all()
 
-    user_chats = [{'username': user.username, 'avatar_image': user.avatar_image.image_path if user.avatar_image else None} for user in users]
+    user_chats = []
+    for user in users:
+        last_message = Message.query.filter(
+            ((Message.sender_id == user.id) & (Message.recipient_id == user_id)) |
+            ((Message.sender_id == user_id) & (Message.recipient_id == user.id))
+        ).order_by(Message.timestamp.desc()).first()
 
-    return jsonify(user_chats)
+        if last_message:
+            user_chats.append({
+                'senderName': user.username,
+                'message': last_message.content,
+                'avatarRes': user.avatar_image if user.avatar_image else 'default_avatar_image_path',
+                'time': last_message.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                'senderPublicKey': user.public_key 
+            })
 
+    return jsonify(user_chats), 200
 
 app.register_blueprint(bp)
