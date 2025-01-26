@@ -54,5 +54,12 @@ def serialize_public_key(public_key):
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode('utf-8')
 
+def serialize_private_key(private_key):
+    return private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    ).decode('utf-8')
+
 def deserialize_public_key(pem):
     return serialization.load_pem_public_key(pem.encode('utf-8'), backend=backend)

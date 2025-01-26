@@ -10,6 +10,7 @@ class User(db.Model):
     about_me = db.Column(db.Text)
     phone_number = db.Column(db.String(20))
     avatar_image = db.Column(db.String(120)) 
+    public_key = db.Column(db.Text)
 
     def set_password(self, password):
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
