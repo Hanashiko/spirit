@@ -88,24 +88,62 @@ def login():
 def send_message():
     data = request.get_json()
     sender_id = data.get('sender_id')
-    receiver_id = data.get('receiver_id')
+    recipient_id = data.get('recipient_id')
     content = data.get('content')
 
-    if not sender_id or not receiver_id or not content:
+    if not sender_id or not recipient_id or not content:
         return jsonify({'success': False, 'message': 'Missing required fields'}), 400
 
     sender = User.query.get(sender_id)
-    receiver = User.query.get(receiver_id)
+    receiver = User.query.get(recipient_id)
 
     if not sender or not receiver:
         return jsonify({'success': False, 'message': 'User not found'}), 404
 
-    message = Message(sender_id=sender_id, recipient_id=receiver_id, content=content)
+    message = Message(sender_id=sender_id, recipient_id=recipient_id, content=content)
     db.session.add(message)
     db.session.commit()
 
     return jsonify({'success': True, 'message': 'Message sent successfully'}), 200
 
+# @bp.route('/send_message', methods=['POST'])
+# def send_message():
+#     data = request.get_json()
+#     sender_id = data.get('sender_id')
+#     recipient_id = data.get('recipient_id')
+#     content = data.get('content')
+#     sender_private_key_pem = data.get('sender_private_key')
+#     receiver_public_key_pem = data.get('receiver_public_key')
+
+#     if not sender_id or not recipient_id or not content or not sender_private_key_pem or not receiver_public_key_pem:
+#         return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+
+#     sender = User.query.get(sender_id)
+#     receiver = User.query.get(recipient_id)
+
+#     if not sender or not receiver:
+#         return jsonify({'success': False, 'message': 'User not found'}), 404
+
+#     # Deserialize keys
+#     sender_private_key = serialization.load_pem_private_key(
+#         sender_private_key_pem.encode('utf-8'),
+#         password=None,
+#         backend=default_backend()
+#     )
+#     receiver_public_key = deserialize_public_key(receiver_public_key_pem)
+
+#     # Generate shared key
+#     shared_key = ecdh_shared_key(sender_private_key, receiver_public_key)
+
+#     # Encrypt the message
+#     encrypted_message = encrypt_message(shared_key, content)
+
+#     message = Message(sender_id=sender_id, recipient_id=recipient_id, content=encrypted_message, timestamp=datetime.utcnow())
+
+#     db.session.add(message)
+#     db.session.commit()
+
+#     return jsonify({'success': True, 'message': 'Message sent successfully'}), 201
 
 @bp.route('/message_history', methods=['GET'])
 def message_history():
@@ -232,5 +270,20 @@ def update_public_key():
     db.session.commit()
 
     return jsonify({'success': True, 'message': 'Public key updated successfully'}), 200
+
+@app.route('/user_chats/<int:user_id>', methods=['GET'])
+def get_user_chats(user_id):
+    chat_user_ids = db.session.query(Message.sender_id).filter(Message.recipient_id == user_id).union(
+        db.session.query(Message.recipient_id).filter(Message.sender_id == user_id)
+    ).distinct().all()
+
+    chat_user_ids = [user_id[0] for user_id in chat_user_ids]
+
+    users = User.query.filter(User.id.in_(chat_user_ids)).all()
+
+    user_chats = [{'username': user.username, 'avatar_image': user.avatar_image.image_path if user.avatar_image else None} for user in users]
+
+    return jsonify(user_chats)
+
 
 app.register_blueprint(bp)
