@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,10 +16,14 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Text
+import android.content.SharedPreferences
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +48,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.test.ui.theme.TestTheme
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.ui.text.input.TextFieldValue
@@ -118,7 +125,9 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             )
         }
         composable("ChatScreen") {
+            val userId = UserPreferences.getUserId(LocalContext.current)
             ChatScreen(
+                userId = userId,
                 onBack = { navController.popBackStack() },
                 onNavigateToCallScreen = { navController.navigate("CallScreen") },
                 onNavigateToProfileScreen = { navController.navigate("ProfileScreen") },
@@ -378,6 +387,9 @@ fun Login(context: Context, email: String, password: String, onSuccess: (Int) ->
 
                     // Відправте публічний ключ на сервер
                     updatePublicKeyOnServer(loginResponse.userId, serializedPublicKey) {
+                        // Збереження даних користувача локально
+                        UserPreferences.saveUser(context, loginResponse.userId, email)
+
                         // Виклик функції onSuccess з ID користувача
                         onSuccess(loginResponse.userId)
                     }
@@ -449,6 +461,7 @@ fun SecondScreenPreview() {
 fun ChatScreenPreview() {
     TestTheme {
         ChatScreen(
+            userId = 1,
             onBack = {},
             onNavigateToCallScreen = {},
             onNavigateToProfileScreen = {},
@@ -639,12 +652,34 @@ fun RegisterUser(username: String, email: String, password: String) {
 
 @Composable
 fun ChatScreen(
+    userId: Int,
     onBack: () -> Unit, 
     onNavigateToCallScreen: () -> Unit, 
     onNavigateToProfileScreen:() -> Unit, 
     onNavigateToSettingsScreen:() -> Unit,
     onNavigateToSendMessageScreen: () -> Unit
 ) {
+    var userChats by remember { mutableStateOf(listOf<User>()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Fetch user chats from the server
+    LaunchedEffect(userId) {
+        RetrofitInstance.api.getUserChats(userId).enqueue(object : Callback<List<User>> {
+            override fun onResponse(call: Call<List<User>>, response: Response<List<User>>) {
+                if (response.isSuccessful) {
+                    userChats = response.body() ?: listOf()
+                } else {
+                    // Handle error response
+                }
+                isLoading = false
+            }
+
+            override fun onFailure(call: Call<List<User>>, t: Throwable) {
+                // Handle failure
+                isLoading = false
+            }
+        })
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -684,16 +719,36 @@ fun ChatScreen(
                     .weight(0.6f)
                     .background(Color.White)
             ) {
-
-                Column {
-                    Text1(
-                        text = "Список чатів",
-                        style = TextStyle(color = Color.Black, fontSize = 20.sp),
-                        modifier = Modifier.padding(16.dp)
-                    )
-
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else {
+                    LazyColumn {
+                        items(userChats) { user ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { /* chat */ }
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Replace with actual avatar image loading logic
+                                Image(
+                                    painter = painterResource(id = R.drawable.avatar_placeholder),
+                                    contentDescription = "User Avatar",
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    text = user.username,
+                                    style = TextStyle(color = Color.Black, fontSize = 16.sp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
+
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

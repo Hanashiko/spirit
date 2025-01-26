@@ -26,4 +26,7 @@ interface ApiService {
 
     @POST("/users/{id}/update_public_key")
     fun updatePublicKey(@Path("id") userId: Int, @Body publicKey: Map<String, String>): Call<ApiResponse>
+
+    @GET("/user_chats/{user_id}")
+    fun getUserChats(@Path("user_id") userId: Int): Call<List<User>>
 }

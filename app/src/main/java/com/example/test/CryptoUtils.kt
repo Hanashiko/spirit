@@ -11,9 +11,13 @@ import java.util.Base64
 
 object CryptoUtils {
 
+    private const val EC_ALGORITHM = "EC"
+    private const val ECDH_ALGORITHM = "ECDH"
+    private const val CURVE_NAME = "secp256r1"
+
     fun generateECKeyPair(): KeyPair {
-        val keyPairGenerator = KeyPairGenerator.getInstance("EC")
-        val ecSpec = ECGenParameterSpec("secp256r1")
+        val keyPairGenerator = KeyPairGenerator.getInstance(EC_ALGORITHM)
+        val ecSpec = ECGenParameterSpec(CURVE_NAME)
         keyPairGenerator.initialize(ecSpec, SecureRandom())
         return keyPairGenerator.generateKeyPair()
     }
@@ -22,15 +26,21 @@ object CryptoUtils {
         return Base64.getEncoder().encodeToString(publicKey.encoded)
     }
 
-    fun deserializePublicKey(publicKeyString: String): PublicKey {
-        val publicKeyBytes = Base64.getDecoder().decode(publicKeyString)
-        val keyFactory = KeyFactory.getInstance("EC")
-        val keySpec = X509EncodedKeySpec(publicKeyBytes)
+    fun deserializePublicKey(pem: String): PublicKey {
+        // Remove PEM header, footer, and newlines
+        val publicKeyPEM = pem
+            .replace("-----BEGIN PUBLIC KEY-----", "")
+            .replace("-----END PUBLIC KEY-----", "")
+            .replace("\\s".toRegex(), "")
+
+        val keyBytes = Base64.getDecoder().decode(publicKeyPEM)
+        val keySpec = X509EncodedKeySpec(keyBytes)
+        val keyFactory = KeyFactory.getInstance(EC_ALGORITHM)
         return keyFactory.generatePublic(keySpec)
     }
 
     fun generateSharedSecret(privateKey: PrivateKey, publicKey: PublicKey): ByteArray {
-        val keyAgreement = KeyAgreement.getInstance("ECDH")
+        val keyAgreement = KeyAgreement.getInstance(ECDH_ALGORITHM)
         keyAgreement.init(privateKey)
         keyAgreement.doPhase(publicKey, true)
         return keyAgreement.generateSecret()

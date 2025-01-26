@@ -10,7 +10,9 @@ data class User(
     val phone_number: String? = null,
     val image: UserImage? = null
 )
-
+object UserSession {
+    var currentUser: User? = null
+}
 data class UserImage(
     val id: Int? = null,
     val user_id: Int,
@@ -27,7 +29,7 @@ data class UserImage(
 //)
 data class Message(
     val sender_id: Int,
-    val receiver_id: Int,
+    val recipient_id: Int,
     val content: String,
     val public_key: String
 )
@@ -56,4 +58,9 @@ data class LoginResponse(
 )
 data class PublicKeyResponse(
     val public_key: String
+)
+data class UserChat(
+    val userId: Int,
+    val username: String,
+    val avatarImage: String?
 )

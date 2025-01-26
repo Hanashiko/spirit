@@ -1,5 +1,6 @@
 package com.example.test
 
+import android.util.Log
 import android.util.Base64
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -23,12 +24,13 @@ import com.example.test.CryptoUtils
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.security.InvalidKeyException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SendMessageScreen(onBack: () -> Unit) {
     val senderId = remember { mutableStateOf("") }
-    val receiverId = remember { mutableStateOf("") }
+    val recipientId = remember { mutableStateOf("") }
     val messageText = remember { mutableStateOf("") }
 
     Box(
@@ -85,8 +87,8 @@ fun SendMessageScreen(onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
 
             TextField(
-                value = receiverId.value,
-                onValueChange = { receiverId.value = it },
+                value = recipientId.value,
+                onValueChange = { recipientId.value = it },
                 label = { Text("ID отримувача") },
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = TextStyle(color = Color.Black),
@@ -122,31 +124,43 @@ fun SendMessageScreen(onBack: () -> Unit) {
                     val publicKeyString = Base64.encodeToString(keyPair.public.encoded, Base64.DEFAULT)
 
                     // Отримання публічного ключа отримувача з сервера
-                    RetrofitInstance.api.getPublicKey(receiverId.value.toInt()).enqueue(object : Callback<PublicKeyResponse> {
+                    RetrofitInstance.api.getPublicKey(recipientId.value.toInt()).enqueue(object : Callback<PublicKeyResponse> {
                         override fun onResponse(call: Call<PublicKeyResponse>, response: Response<PublicKeyResponse>) {
                             if (response.isSuccessful) {
                                 val recipientPublicKeyString = response.body()?.public_key
                                 if (recipientPublicKeyString != null) {
-                                    val recipientPublicKey = CryptoUtils.deserializePublicKey(recipientPublicKeyString)
-                                    val sharedSecret = CryptoUtils.generateSharedSecret(keyPair.private, recipientPublicKey)
-                                    val encryptedMessage = CryptoUtils.encryptMessage(sharedSecret, messageText.value)
+                                    try {
+                                        Log.d("SendMessageScreen", "Public key received: $recipientPublicKeyString")
+                                        val recipientPublicKey = CryptoUtils.deserializePublicKey(recipientPublicKeyString)
+                                        val sharedSecret = CryptoUtils.generateSharedSecret(keyPair.private, recipientPublicKey)
+                                        val encryptedMessage = CryptoUtils.encryptMessage(sharedSecret, messageText.value)
 
-                                    sendMessageToServer(
-                                        senderId = senderId.value.toInt(),
-                                        receiverId = receiverId.value.toInt(),
-                                        messageText = encryptedMessage,
-                                        publicKey = publicKeyString
-                                    )
+                                        Log.d("SendMessageScreen", "Sending message: $encryptedMessage")
+                                        sendMessageToServer(
+                                            senderId = senderId.value.toInt(),
+                                            recipientId = recipientId.value.toInt(),
+                                            messageText = encryptedMessage,
+                                            publicKey = publicKeyString
+                                        )
+                                    } catch (e: IllegalArgumentException) {
+                                        // Handle invalid Base64 encoding
+                                        Log.e("SendMessageScreen", "Invalid Base64 encoding: ${e.message}")
+                                    } catch (e: InvalidKeyException) {
+                                        // Handle invalid key agreement
+                                        Log.e("SendMessageScreen", "Invalid Key Agreement: ${e.message}")
+                                    }
+                                } else {
+                                    Log.e("SendMessageScreen", "Public key is null")
                                 }
                             } else {
                                 // Handle error response
-                                println("Failed to get public key: ${response.errorBody()?.string()}")
+                                Log.e("SendMessageScreen", "Failed to get public key: ${response.errorBody()?.string()}")
                             }
                         }
 
                         override fun onFailure(call: Call<PublicKeyResponse>, t: Throwable) {
                             // Handle failure
-                            println("Failed to get public key: ${t.message}")
+                            Log.e("SendMessageScreen", "Failed to get public key: ${t.message}")
                         }
                     })
                 },
@@ -164,74 +178,22 @@ fun SendMessageScreen(onBack: () -> Unit) {
     }
 }
 
-fun sendMessageToServer(senderId: Int, receiverId: Int, messageText: String, publicKey: String) {
-    val message = Message(sender_id = senderId, receiver_id = receiverId, content = messageText, public_key = publicKey)
+fun sendMessageToServer(senderId: Int, recipientId: Int, messageText: String, publicKey: String) {
+    val message = Message(sender_id = senderId, recipient_id = recipientId, content = messageText, public_key = publicKey)
     RetrofitInstance.api.sendMessage(message).enqueue(object : Callback<ApiResponse> {
         override fun onResponse(call: Call<ApiResponse>, response: Response<ApiResponse>) {
             if (response.isSuccessful) {
                 // Message sent successfully
-                println("Message sent successfully")
+                Log.d("SendMessageScreen", "Message sent successfully")
             } else {
                 // Handle unsuccessful response
-                println("Failed to send message: ${response.errorBody()?.string()}")
+                Log.e("SendMessageScreen", "Failed to send message: ${response.errorBody()?.string()}")
             }
         }
 
         override fun onFailure(call: Call<ApiResponse>, t: Throwable) {
             // Handle failure
-            println("Failed to send message: ${t.message}")
+            Log.e("SendMessageScreen", "Failed to send message: ${t.message}")
         }
     })
 }
-
-//fun SendMessage(senderId: Int, receiverId: Int, messageText: String, publicKey: String) {
-//    val message = Message(sender_id = senderId, receiver_id = receiverId, content = messageText, public_key = publicKey)
-//    RetrofitInstance.api.sendMessage(message).enqueue(object : Callback<ApiResponse> {
-//        override fun onResponse(call: Call<ApiResponse>, response: Response<ApiResponse>) {
-//            if (response.isSuccessful) {
-//                // Handle successful response
-//                val apiResponse = response.body()
-//                // Show success message
-//            } else {
-//                // Handle error response
-//            }
-//        }
-//
-//        override fun onFailure(call: Call<ApiResponse>, t: Throwable) {
-//            // Handle failure
-//        }
-//    })
-//}
-
-//fun sendMessage(senderId: Int, receiverId: Int, content: String, onSuccess: () -> Unit, onFailure: (Throwable) -> Unit) {
-//    val message = Message(sender_id = senderId, receiver_id = receiverId, content = content)
-//    RetrofitInstance.api.sendMessage(message).enqueue(object : Callback<ApiResponse> {
-//        override fun onResponse(call: Call<ApiResponse>, response: Response<ApiResponse>) {
-//            if (response.isSuccessful) {
-//                onSuccess()
-//            } else {
-//                onFailure(Exception("Failed to send message"))
-//            }
-//        }
-//
-//        override fun onFailure(call: Call<ApiResponse>, t: Throwable) {
-//            onFailure(t)
-//        }
-//    })
-//}
-//
-//fun getMessages(userId: Int, onSuccess: (List<Message>) -> Unit, onFailure: (Throwable) -> Unit) {
-//    RetrofitInstance.api.getMessages(userId).enqueue(object : Callback<List<Message>> {
-//        override fun onResponse(call: Call<List<Message>>, response: Response<List<Message>>) {
-//            if (response.isSuccessful) {
-//                onSuccess(response.body() ?: emptyList())
-//            } else {
-//                onFailure(Exception("Failed to retrieve messages"))
-//            }
-//        }
-//
-//        override fun onFailure(call: Call<List<Message>>, t: Throwable) {
-//            onFailure(t)
-//        }
-//    })
-//}
