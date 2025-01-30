@@ -1,16 +1,16 @@
-use for install dependencies:
-pip install -r requirements.txt
+### use for install dependencies:
+``` pip install -r requirements.txt ```
 
-add to .env:
-DATABASE_URI = mysql+pymysql://username:password@localhost/database
-SECRET_KEY = secretkey
+### add to .env:
+```DATABASE_URI = mysql+pymysql://username:password@localhost/database
+SECRET_KEY = secretkey```
 
-use for db:
+### use for db:
 
-flask db init
-flask db migrate -m "Initial migration."
-flask db upgrade
+```flask db init```
+```flask db migrate -m "Initial migration."```
+```flask db upgrade```
 
-use for run:
+### use for run:
 
-python run.py
+```python run.py```
